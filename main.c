@@ -6,7 +6,7 @@
   ******************************************************************************
   * @attention
   *
-  * Copyright (c) 2023 STMicroelectronics.
+  * Copyright (c) 2022 STMicroelectronics.
   * All rights reserved.
   *
   * This software is licensed under terms that can be found in the LICENSE file
@@ -21,19 +21,12 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <stdio.h>
-#include "FDCAN.h"
+
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-#ifdef __GNUC__
-  /* With GCC, small printf (option LD Linker->Libraries->Small printf
-     set to 'Yes') calls __io_putchar() */
-  #define PUTCHAR_PROTOTYPE int __io_putchar(int ch)
-#else
-  #define PUTCHAR_PROTOTYPE int fputc(int ch, FILE *f)
-#endif /* __GNUC__ */
+
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -42,7 +35,6 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
 
 /* USER CODE END PM */
 
@@ -53,7 +45,24 @@ UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
 
+/*FDCAN filter structure definition*/
+FDCAN_FilterTypeDef sFilterConfig;
 
+/*brief  FDCAN Tx header structure definition */
+FDCAN_TxHeaderTypeDef TxHeader;
+
+/*brief  FDCAN Rx header structure definition */
+FDCAN_RxHeaderTypeDef RxHeader;
+
+//uint8_t Node1_Node2_Tx[64];
+//char Tx_FIFO_free_level[40];
+
+int l,i;
+
+//uint8_t count;
+//char Tx_FIFO_Buffer[40];
+//uint32_t Ret,Ret1;
+int flag=0;
 
 /* USER CODE END PV */
 
@@ -102,21 +111,37 @@ int main(void)
   MX_FDCAN1_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-   printf("\n\r*******************************************");
-   printf("\n\rCENTRE FOR DEVELOPMENT OF ADVANCE COMPUTING");
-   printf("\n\r*******************************************");
-   printf("\n\rExperiment No:41 \n\rName:FD CAN -Receiver (Polling Method) ");
-   printf("\n\rData Bit Rate : 500 Kb/s");
-   printf("\n\rNominal Bit Rate : 2.37 Mb/s");
-   printf("\n\r");
 
-   /*Configure TX Header*/
- 	 Tx_header();
- 	/*Configure Filter*/
- 	 filter_config();
+	  printf("\n\r*******************************************");
+	  printf("\n\rCENTRE FOR DEVELOPMENT OF ADVANCE COMPUTING");
+	  printf("\n\r*******************************************");
+	  printf("\n\rExperiment No:xx \n\rName:FD CAN - Transmitter (Polling Method) ");
+		printf("\n\rNominal Bit Rate : 2.37 Mb/s");
+		printf("\n\rData Bit Rate : 500 Kb/s");
+		printf("\n\r Select the FDCAN Data Length Code ");
+		printf(" \n\r A   0 bytes data field \
+		   \n\r B   1 bytes data field \
+		   \n\r C   2 bytes data field \
+			 \n\r D   3 bytes data field \
+		   \n\r E   4 bytes data field \
+			 \n\r F   5 bytes data field \
+		   \n\r G   6 bytes data field \
+			 \n\r H   7 bytes data field \
+		   \n\r I   8 bytes data field \
+			 \n\r J   12 bytes data field \
+			 \n\r K   16 bytes data field \
+		   \n\r L   20 bytes data field \
+			 \n\r M   24 bytes data field \
+		   \n\r N   32 bytes data field \
+			 \n\r O   48 bytes data field \
+			\n\r P   64 bytes data field \n\r");
+  printf("\n\r");
 
- 	 /*Start FD CAN*/
- 	 FDCAN_Start();
+  /* CONFIGURE TX HEADER PARAMETERS*/
+  FDCAN_TX_Header();
+
+  /* Start the FDCAN module */
+  FDCAN_Start();
 
 
 
@@ -127,17 +152,26 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+	  if(i!=l)
+		{
+			Read_Data();
+			i++;
+
+		}
+
+		Delay(1000);
+
+		if(i==l)
+		{
+			FDCAN_Transmit_FIFO();
+
+		}
+  }
     /* USER CODE END WHILE */
-	 /*Get FIFo Level*/
-	  FIFO_Level();
-
-	  /*to Receive Messaga*/
-	  FDCAN_GetRxMessage();
-
-
 
     /* USER CODE BEGIN 3 */
-  }
+
   /* USER CODE END 3 */
 }
 
@@ -204,9 +238,9 @@ static void MX_FDCAN1_Init(void)
   /* USER CODE END FDCAN1_Init 1 */
   hfdcan1.Instance = FDCAN1;
   hfdcan1.Init.ClockDivider = FDCAN_CLOCK_DIV1;
-  hfdcan1.Init.FrameFormat = FDCAN_FRAME_FD_BRS;
+  hfdcan1.Init.FrameFormat = FDCAN_FRAME_CLASSIC;
   hfdcan1.Init.Mode = FDCAN_MODE_NORMAL;
-  hfdcan1.Init.AutoRetransmission = ENABLE;
+  hfdcan1.Init.AutoRetransmission = DISABLE;
   hfdcan1.Init.TransmitPause = DISABLE;
   hfdcan1.Init.ProtocolException = DISABLE;
   hfdcan1.Init.NominalPrescaler = 1;
@@ -217,7 +251,7 @@ static void MX_FDCAN1_Init(void)
   hfdcan1.Init.DataSyncJumpWidth = 4;
   hfdcan1.Init.DataTimeSeg1 = 13;
   hfdcan1.Init.DataTimeSeg2 = 13;
-  hfdcan1.Init.StdFiltersNbr = 2;
+  hfdcan1.Init.StdFiltersNbr = 0;
   hfdcan1.Init.ExtFiltersNbr = 0;
   hfdcan1.Init.TxFifoQueueMode = FDCAN_TX_FIFO_OPERATION;
   if (HAL_FDCAN_Init(&hfdcan1) != HAL_OK)
@@ -294,14 +328,9 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-PUTCHAR_PROTOTYPE
-{
-  /* Place your implementation of fputc here */
-  /* e.g. write a character to the EVAL_COM1 and Loop until the end of transmission */
-  HAL_UART_Transmit(&huart1, (uint8_t *)&ch, 1, 0xFFFF);
 
-  return ch;
-}
+
+
 
 /* USER CODE END 4 */
 
